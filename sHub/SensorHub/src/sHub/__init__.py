@@ -1,11 +1,11 @@
 import Tkinter as tk
-from Tkinter import IntVar, Label, Frame, Button, Radiobutton, LabelFrame, Spinbox, Menu, Listbox, Canvas
-from ttk import Labelframe, Combobox, Treeview, Scrollbar
+from Tkinter import IntVar, Label, Frame, Button, Radiobutton, LabelFrame, Spinbox, Menu, Listbox, Canvas, Scrollbar
 from PIL import Image, ImageTk      # Needs Pillow
-from Tkconstants import LEFT, E, EW, NE, W, S, NSEW, GROOVE, RIGHT, NW, DISABLED, CENTER, RAISED, SUNKEN, BOTH, LAST, NORMAL, END
+from Tkconstants import LEFT, E, EW, NE, W, S, NSEW, GROOVE, RIGHT, NW, DISABLED, CENTER, RAISED, SUNKEN, BOTH, LAST, NORMAL, END, X, Y, TOP
 import threading
 import Queue
 from collections import OrderedDict
+
 
 xLoc = ('A','M','F')
 yLoc = ('P','S')

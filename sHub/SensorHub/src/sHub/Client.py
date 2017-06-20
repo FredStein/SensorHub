@@ -31,7 +31,7 @@ class ThreadedClient:
         # Set up the thread to do asynchronous I/O
         # More can be made if necessary
         self.running = 1
-        self.thread1 = st.threading.Thread(target=self.workerThread1)
+        self.thread1 = st.threading.Thread(target=self.IOThread)
         self.thread1.setDaemon(1)
         self.thread1.start()
 
@@ -48,9 +48,9 @@ class ThreadedClient:
             self.master.destroy()
 
         self.gui.processIncoming()
-        self.master.after(100, self.periodicCall)
+        self.master.after(40, self.periodicCall)
 
-    def workerThread1(self):
+    def IOThread(self):
         """
         This is where we handle the asynchronous I/O.
         The thread has to yield control.
@@ -79,5 +79,5 @@ class ThreadedClient:
     def endApp(self):
         for node in st.nodes:
             st.nodes[node].db.commit()
-            st.nodes[node].db.close()     #would prefer a success test here
+            st.nodes[node].db.close()                                       #:TODO success test here & exception handling
         self.running = 0
