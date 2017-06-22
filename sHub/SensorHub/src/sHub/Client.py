@@ -31,9 +31,9 @@ class ThreadedClient:
         # Set up the thread to do asynchronous I/O
         # More can be made if necessary
         self.running = 1
-        self.thread1 = st.threading.Thread(target=self.IOThread)
-        self.thread1.setDaemon(1)
-        self.thread1.start()
+        self.IOT = st.threading.Thread(target=self.IOThread)
+        self.IOT.setDaemon(1)
+        self.IOT.start()
 
         # Start the periodic call in the GUI to check if the queue contains
         # anything
@@ -47,7 +47,7 @@ class ThreadedClient:
             # Cleanup in EndApp
             self.master.destroy()
 
-        self.gui.processIncoming()
+        self.gui.processQueue()
         self.master.after(40, self.periodicCall)
 
     def IOThread(self):
@@ -64,7 +64,7 @@ class ThreadedClient:
         s.bind((host, port))
 
         while self.running:
-            time.sleep(1)
+            time.sleep(0.1)
             message, address = s.recvfrom(8192)
             msgStr = message.decode('utf8')
             print msgStr

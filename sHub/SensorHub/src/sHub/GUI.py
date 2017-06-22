@@ -16,15 +16,15 @@ class UI(object):
         :param endCommand: protocol handler for close [x] / Quit
         """
         root.title('Sensor Hub')
-        root.geometry('+%d+%d' % (100, 100))
+        root.geometry('+%d+%d' % (100, 100))                                    #:TODO:    To config
         menubar = st.Menu(root)
-        filemenu = st.Menu(menubar, tearoff = 0)
+        filemenu = st.Menu(menubar, tearoff = False)
         menubar.add_cascade(label = 'File', menu = filemenu)
         filemenu.add_command(label = 'Quit', command = endCommand)
         root.config(menu = menubar)
 
         guiFrame = st.Frame(root,borderwidth=5,relief = st.GROOVE)
-        guiFrame.pack(expand = 1, fill = st.BOTH)
+        guiFrame.pack(expand = True, fill = st.BOTH)
 
         btnFrame =st.Frame(guiFrame)
         btnFrame.pack()
@@ -37,25 +37,22 @@ class UI(object):
                 b = st.Button(btnFrame, state = st.DISABLED, text = w+h, width = 4, height = 2)
                 b.grid(row=st.yLoc.index(h), column=st.xLoc.index(w))
                 self.nodeButtons[w+h] = b
-                self.nodeWindows[w+h] = st.Frame(guiFrame,borderwidth=2,relief = st.GROOVE, bg="black")
+                self.nodeWindows[w+h] = st.Frame(guiFrame,borderwidth=2,relief = st.GROOVE, bg="beige")
 
     def createNode(self,node):
         """Activate button to signal node active and enable display of incoming data
              Create instance of sNode object
         :param node: tuple (IPv4 address, nodeID, initial message) strings
         """
-        print node[1]
         btxt = node[1]+'\n'+node[0]
         self.nodeButtons[node[1]].config(state = st.NORMAL)
         st.nodes[node[0]] = sNode(self.nodeWindows[node[1]],node,self.nodeButtons[node[1]])
-        print len(st.nodes)
-        print st.nodes.keys()
         self.nodeButtons[node[1]].config(command = st.nodes[node[0]].show)
         self.nodeButtons[node[1]].config(text = btxt, width = len(node[0])-3)
 
-    def processIncoming(self):
+    def processQueue(self):
         """
-        Handle all the messages currently in the sensor queues (if any).
+        Handle all the messages currently in the sensor queue (if any).
         """
         for nAddr, localq in st.queues.items():
             while (localq.qsize()):
@@ -97,81 +94,53 @@ class sNode():
         dbFName = self.ID+'db.sqlite3'          #FileName  is NodeID(IP address) + 'db.sqlite3'
         self.openDB(dbFName)
         
-        self.headerFrame = st.Frame(self.ownWindow,bg = 'yellow')
-        self.headerFrame.grid(row = 0, column = 0, sticky = st.NSEW)                                   #Do not fill X here or header stretches to cover scrollbar (?)
-
-        self.dispPort = st.Canvas(self.ownWindow, bg = 'bisque')
-        self.dispPort.grid(row = 1, column = 0, sticky = st.NSEW)
-
-
-        self.dispFrame = st.Frame(self.dispPort, bg = 'green',pady = 2)
-        self.dispFrameID = self.dispPort.create_window(0,0, window = self.dispFrame, anchor = st.NW)
-        
-        
-        var_scroll = st.Scrollbar(self.ownWindow, orient = "vertical", command = self.dispPort.yview)
-        var_scroll.grid(row = 1, column = 1, sticky = st.NSEW)
-        
-        self.dispPort.config(yscrollcommand = var_scroll.set)
-
+        self.headerFrame = st.Frame(self.ownWindow)
+        self.headerFrame.grid(row = 0, column = 0, sticky = st.W)                                   #Do not fill X here or header stretches to cover scrollbar (?)
+        self.ownWindow.columnconfigure(0, weight = 1)
+        self.dp = st.Frame(self.ownWindow)
+        self.dp.grid(row = 1, column = 0, sticky = st.NSEW)
+        self.ownWindow.rowconfigure(1, weight = 1)
+        self.dFrame = dataFrame(self.dp, self.sensFieldValues)
         
         nodeTitle = st.Label(self.headerFrame, text = self.ID)
         nodeTitle.grid(row=0,column=0, sticky=st.EW, columnspan = self.sensCols()+1)
         
         sTitle = "Time"
-        self.sensFieldNames[sTitle] = st.Label(self.headerFrame,text = sTitle, bg = 'magenta')
+        self.sensFieldNames[sTitle] = st.Label(self.headerFrame,text = sTitle)
         self.sensFieldNames[sTitle].grid(row = 1, column = 0, sticky = st.EW, rowspan = 2)
-        
-        self.sensFieldValues[sTitle] = st.Label(self.dispFrame, bg ='blue', fg = 'white',text ="", anchor = st.NE)
-        self.sensFieldValues[sTitle].pack(side = st.LEFT, fill = st.Y, expand = 1)
-#         self.dispFrame.columnconfigure(0, weight=1)
-#         self.dispFrame.rowconfigure(0, weight=1)
+        self.headerFrame.columnconfigure(0, weight = 1)
 
+        ts = self.initElements.find("Timestamp").attrib.get(sTitle)
+        fieldVal = dt.fromtimestamp(float(ts)/1000).strftime("%m %d %H:%M:%S.%f")[:-3]
+        
+        self.sensFieldNames[sTitle].config(width = len(fieldVal)-4)         #Size header to fit timestamp
+        self.dFrame.populate(sTitle, 0)
         colndx = 1
         """
         :TODO:    Sort Sensors to desired order if not already
         """ 
         for sensor in self.sensors.keys():
-            sTitle = sensor
-            sLbl = st.Label(self.headerFrame, text = sTitle, bg='orange')
+            sLbl = st.Label(self.headerFrame, text = sensor)
             sLbl.grid(row = 1, column = colndx, sticky = st.EW, columnspan = len(self.sensors.get(sensor)))
             self.headerFrame.columnconfigure(colndx, weight = 1)
             
-            for ctr in xrange(0,len(self.sensors.get(sTitle))):
-                instName = sTitle + self.sensors.get(sTitle)[ctr]
-                self.sensFieldNames[instName] = st.Label(self.headerFrame,text = self.sensors.get(sTitle)[ctr], bg = 'magenta')
-                self.sensFieldNames[instName].grid(row = 2, column = colndx+ctr, sticky = st.NSEW)
+            for ctr in xrange(0,len(self.sensors.get(sensor))):
+                instName = sensor + self.sensors.get(sensor)[ctr]
+                self.sensFieldNames[instName] = st.Label(self.headerFrame,text = self.sensors.get(sensor)[ctr], width = 0)
+                self.sensFieldNames[instName].grid(row = 2, column = colndx+ctr, sticky = st.EW)
                 self.headerFrame.columnconfigure(colndx+ctr, weight = 1)
+                self.dFrame.populate(instName, colndx+ctr)
                 
-                self.sensFieldValues[instName] = st.Label(self.dispFrame, bg ='blue', fg = 'white', text ='', anchor = st.NE)
-                self.sensFieldValues[instName].pack(side = st.LEFT, fill = st.Y, expand = 1)
-
-#                self.dispFrame.columnconfigure(colndx+ctr, weight=1)
-                
-            colndx += len(self.sensors.get(sTitle))
+            colndx += len(self.sensors.get(sensor))
             self.createTable(self.db, sensor, self.sensors[sensor])
-
-        self.dispFrame.bind("<Configure>", self.OnFrameConfigure)
-        self.dispPort.bind('<Configure>', self.FrameHeight)
-
-    def FrameHeight(self, event):
-        print event.height, event.width
-        canvas_height = event.height
-        self.dispPort.itemconfig(self.dispFrameID, height = canvas_height)
-
-    def OnFrameConfigure(self, event):
-        self.dispPort.configure(scrollregion=self.dispPort.bbox('all'))
 
     def appendData(self,msg):
         xmlElements =  ET.fromstring(msg)
         ts = xmlElements.find("Timestamp").attrib.get("Time")
         fieldVal = dt.fromtimestamp(float(ts)/1000).strftime('%m %d %H:%M:%S.%f')[:-3]
-
-        temp1 = self.sensFieldValues['Time'].cget('text')
+        temp = fieldVal + '\n' + self.sensFieldValues['Time'].cget('text')
+        self.sensFieldValues['Time'].config(text = temp)
         
-        temp2 = fieldVal + '\n' + temp1
-        
-        self.sensFieldValues['Time'].config(text = temp2, width = len(fieldVal)-3)
-        self.sensFieldNames['Time'].config(width = len(fieldVal)-3)
         for sensor in xmlElements.findall("Sensor"):
             values = [int(ts)]                                       #Initialise DB row content
             name = sensor.get("Type")
@@ -261,7 +230,6 @@ class sNode():
         return n
 
     def show(self):
-        print "ping"
         self.display = True
         self.ownWindow.pack(fill=st.BOTH, expand=True)
         self.btn.config(command = self.hide)
@@ -270,7 +238,6 @@ class sNode():
         self.display = False
         self.ownWindow.pack_forget()
         self.btn.config(command = self.show)
-        #insert code to hide parent frame if this is the only active node
 
     def setSensors(self):
         for sensor in self.initElements.findall("Sensor"):
@@ -280,6 +247,35 @@ class sNode():
                         varList.append(entry)
                     self.sensors[sensor.get("Type")] = varList
 
-    
+
+class dataFrame(st.Frame):
+    def __init__(self, root, sfv):
+        self.sensFieldValues = sfv
+        st.Frame.__init__(self, root)
+        self.canvas = st.Canvas(root, width = 0)
+        self.frame = st.Frame(self.canvas)
+        self.vsb = st.Scrollbar(root, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.vsb.pack(side="right", fill="y")
+        self.canvas.create_window((0,0), window=self.frame, anchor="nw", tags="self.frame")
+
+        self.frame.bind("<Configure>", self.onFrameConfigure)
+        self.canvas.bind("<Configure>", self.FrameHeight)
+
+    def populate(self, colKey, col):
+        '''Put in data'''
+        self.sensFieldValues[colKey] = st.Label(self.frame, text="", bd = 2, bg = 'blue', fg = 'white', justify = st.RIGHT)
+        self.sensFieldValues[colKey].grid(row=0, column=col, sticky = st.NSEW)
+        self.frame.columnconfigure(col, weight = 1)
+
+    def FrameHeight(self, event):
+        frame_height = event.height
+        frame_width = event.width
+        self.canvas.itemconfig(self.frame, height = frame_height, width = frame_width)
+
+    def onFrameConfigure(self, event):
+        '''Reset the scroll region to encompass the inner frame'''
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
     
     
